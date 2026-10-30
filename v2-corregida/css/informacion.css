@@ -1,0 +1,324 @@
+:root {
+  --verde: #9ff411;
+  --verdelima: #56f532;
+  --Blanco: #fff;
+  --Rojo: #f50801;
+  --Naranja: #f5581a;
+  --Morado: #ed14f5;
+  --rosa: #f5149f;
+  --titulos: 'Arima Madurai', cursive;
+  --Parrafos: 'Mulish', sans-serif;
+}
+
+
+*, *::after, *::before {
+  box-sizing: inherit;
+}
+
+.contenedor {
+  max-width: 120rem;
+  margin: 0 auto;
+  width: 95%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  background-color: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+h1, h2 {
+  font-family: var(--titulos);
+  text-align: center;
+}
+
+h1 {
+  font-size: 2em;
+  margin: 1.33em 0;
+  color: #333;
+}
+
+h2 {
+  font-size: 1.5em;
+  margin: 1em 0;
+  color: #333;
+}
+
+p {
+  font-size: 1em;
+  margin: 0.5em 0;
+  color: #666;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0;
+}
+
+li {
+  margin: 0.5em 0;
+}
+
+a {
+  color: var(--Blanco);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+section {
+  width: 45%; /* adjust the width to your liking */
+  margin: 2rem;
+  display: inline-block;
+  vertical-align: top;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+img {
+  width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  border-radius: 10px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Add some styles to the links */
+a {
+  color: var(--verde);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Add some styles to the sections */
+section {
+  background-color: #fff;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Add some styles to the headings */
+h1, h2, h3 {
+  font-family: var(--titulos);
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+h1 {
+  font-size: 2em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+h3 {
+  font-size: 1.2em;
+}
+
+/* Add some styles to the paragraphs */
+p {
+  font-family: var(--Parrafos);
+  font-size: 1em;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+/* Add some styles to the lists */
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+li::before {
+  content: "\2022";
+  color: var(--verde);
+  font-size: 1.2em;
+  margin-right: 0.5rem;
+}
+
+/* Add some styles to the buttons */
+.btn {
+  background-color: var(--verde);
+  color: #fff;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.2em;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.btn:hover {
+  background-color: var(--verdelima);
+}
+
+/* Add some styles to the footer */
+footer {
+  background-color: var(--Morado);
+  color: #fff;
+  padding: 2rem;
+  text-align: center;
+  clear: both;
+}
+
+footer a {
+  color: #fff;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* Add some styles to the images */
+img {
+  width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  border-radius: 10px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Add some styles to the sections */
+section {
+  background-color: #fff;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Add some styles to the headings */
+h1, h2, h3 {
+  font-family: var(--titulos);
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+h1 {
+  font-size: 2em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+h3 {
+  font-size: 1.2em;
+}
+
+/* Add some styles to the paragraphs */
+p {
+  font-family: var(--Parrafos);
+  font-size: 1em;
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+/* Add some styles to the lists */
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+li::before {
+  content: "\2022";
+  color: var(--verde);
+  font-size: 1.2em;
+  margin-right: 0.5rem;
+}
+
+/* Add some styles to the buttons */
+.btn {
+  background-color: var(--verde);
+  color: #fff;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.2em;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.btn:hover {
+  background-color: var(--verdelima);
+}
+
+/* Add some styles to the footer */
+footer {
+  background-color: var(--Morado);
+  color: #fff;
+  padding: 2rem;
+  text-align: center;
+  clear: both;
+}
+
+footer a {
+  color: #fff;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* Add some styles to the navigation */
+nav {
+  background-color: var(--verde);
+  padding: 1rem;
+  text-align: center;
+}
+
+nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+nav li {
+  margin-right: 2rem;
+}
+
+nav a {
+  color: #fff;
+  text-decoration: none;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}

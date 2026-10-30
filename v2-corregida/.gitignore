@@ -1,0 +1,8 @@
+# Secretos y configuración local
+includes/config.local.php
+.env
+*.env
+# Subidas de usuarios generadas en ejecución (conservar solo las de ejemplo)
+# Evidencias temporales
+pruebas/salida/
+*.log

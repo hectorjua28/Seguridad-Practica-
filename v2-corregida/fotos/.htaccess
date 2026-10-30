@@ -1,0 +1,6 @@
+# Defensa en profundidad: nada subido a esta carpeta debe ejecutarse como código.
+<FilesMatch "\.(php|phtml|phar|php[0-9])$">
+    Require all denied
+</FilesMatch>
+php_flag engine off
+Options -ExecCGI -Indexes

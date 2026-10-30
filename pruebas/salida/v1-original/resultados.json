@@ -1,0 +1,170 @@
+[
+ {
+  "id": "P-01a",
+  "vuln": "VULN-01",
+  "titulo": "Inyección SQL en scripts/login.php (bypass de autenticación)",
+  "seguro": false,
+  "evidencia": "POST /scripts/login.php  email=\"x' OR '1'='1\"  pass=\"x' OR '1'='1\"\n-> HTTP 302  Location: ../paginas/calendario.php  Set-Cookie: si"
+ },
+ {
+  "id": "P-01b",
+  "vuln": "VULN-01",
+  "titulo": "Inyección SQL UNION en load_events.php (exfiltración de hashes)",
+  "seguro": false,
+  "evidencia": "Usuario NO admin autenticado. GET /scripts/load_events.php?mes=0 UNION SELECT ... FROM users --\n-> HTTP 200; hashes de contraseña exfiltrados en la respuesta: 8 (valores ocultos)"
+ },
+ {
+  "id": "P-02a",
+  "vuln": "VULN-02",
+  "titulo": "Listado de usuarios accesible sin sesión",
+  "seguro": false,
+  "evidencia": "Visitante SIN sesión: GET /scripts/lista_usuarios.php\n-> HTTP 200; correos de usuarios visibles en la respuesta: 4"
+ },
+ {
+  "id": "P-02b",
+  "vuln": "VULN-02",
+  "titulo": "Eliminación de usuarios sin sesión",
+  "seguro": false,
+  "evidencia": "Visitante SIN sesión: POST /scripts/eliminar_usuario.php?id=3\n-> HTTP 302; usuario id=3 sigue existiendo en BD: NO (fue eliminado)"
+ },
+ {
+  "id": "P-02c",
+  "vuln": "VULN-02",
+  "titulo": "Cambio de contraseña ajena sin sesión (toma de cuenta)",
+  "seguro": false,
+  "evidencia": "Visitante SIN sesión cambia la clave de id=2 y luego inicia sesión con la clave del atacante\n-> login con clave del atacante: 'success'  (toma de cuenta POSIBLE)"
+ },
+ {
+  "id": "P-02d",
+  "vuln": "VULN-02",
+  "titulo": "Usuario sin rol admin accede a gestión de usuarios",
+  "seguro": false,
+  "evidencia": "Usuario autenticado SIN rol admin: GET /scripts/lista_usuarios.php\n-> HTTP 200"
+ },
+ {
+  "id": "P-03a",
+  "vuln": "VULN-03",
+  "titulo": "Algoritmo de hash de contraseñas en alta de usuario",
+  "seguro": false,
+  "evidencia": "Alta de usuario vía scripts/registro_usuario.php; formato del hash en BD: MD5 sin sal (32 hex)\nmd5 coincide con diccionario/rainbow trivial: SI"
+ },
+ {
+  "id": "P-03b",
+  "vuln": "VULN-03",
+  "titulo": "Migración de hashes MD5 heredados a bcrypt",
+  "seguro": false,
+  "evidencia": "Cuenta heredada con hash MD5: login -> 'Error: Contraseña incorrecta'\nformato del hash tras el login: MD5 (sin migrar)"
+ },
+ {
+  "id": "P-04a",
+  "vuln": "VULN-04",
+  "titulo": "Subida de webshell .php y ejecución remota",
+  "seguro": false,
+  "evidencia": "Subida de shell.php (<?php echo 'RCE_'.(6*7); ?>) -> HTTP 200\nGET /fotos/shell.php -> HTTP 200; respuesta: 'RCE_42'  (código ejecutado en servidor: SI)"
+ },
+ {
+  "id": "P-04b",
+  "vuln": "VULN-04",
+  "titulo": "Subida .php con Content-Type falsificado",
+  "seguro": false,
+  "evidencia": "shell2.php con Content-Type falsificado image/jpeg -> HTTP 200\nGET /fotos/shell2.php -> HTTP 200; ejecutado: SI"
+ },
+ {
+  "id": "P-04c",
+  "vuln": "VULN-04",
+  "titulo": "Imagen políglota (GIF+PHP) con doble extensión",
+  "seguro": true,
+  "evidencia": "GIF con código PHP embebido -> HTTP 200; archivo rechazado/no guardado"
+ },
+ {
+  "id": "P-04d",
+  "vuln": "VULN-04",
+  "titulo": "Regresión: subida legítima de imagen PNG",
+  "seguro": true,
+  "evidencia": "Subida legítima de PNG -> HTTP 200; mensaje de éxito presente: SI  (prueba de regresión funcional)"
+ },
+ {
+  "id": "P-05a",
+  "vuln": "VULN-05",
+  "titulo": "Credenciales de BD (root sin clave) embebidas en el código",
+  "seguro": false,
+  "evidencia": "Búsqueda de credenciales 'root' con clave vacía embebidas en código PHP\n-> archivos afectados: 14 (bd_php/conexion.php, index.php, paginas/login.php, paginas/registro.php, scripts/add_comment.php, scripts/conexion.php, scripts/editar_evento.php, scripts/evento_detalle.php, scripts/eventos.php, scri)"
+ },
+ {
+  "id": "P-05b",
+  "vuln": "VULN-05",
+  "titulo": "Errores detallados mostrados al usuario (display_errors)",
+  "seguro": false,
+  "evidencia": "Búsqueda de ini_set('display_errors',1) y echo de excepciones al usuario\n-> archivos con display_errors activado: 1 ['bd_php/usuarioBD.php']"
+ },
+ {
+  "id": "P-05c",
+  "vuln": "VULN-05",
+  "titulo": "Secretos excluidos del control de versiones",
+  "seguro": false,
+  "evidencia": ".gitignore protege includes/config.local.php (secretos fuera del repositorio): NO (no existe .gitignore)"
+ },
+ {
+  "id": "P-06a",
+  "vuln": "VULN-06",
+  "titulo": "Atributos HttpOnly/SameSite de la cookie de sesión",
+  "seguro": false,
+  "evidencia": "Set-Cookie al iniciar sesión: PHPSESSID=****; path=/\nHttpOnly: NO   SameSite: NO"
+ },
+ {
+  "id": "P-06b",
+  "vuln": "VULN-06",
+  "titulo": "Fijación de sesión (session fixation)",
+  "seguro": true,
+  "evidencia": "Fijación de sesión: la víctima inicia sesión con un ID impuesto por el atacante; el atacante reutiliza ese ID\nGET /paginas/calendario.php (cookie del atacante) -> HTTP 200; accede a contenido autenticado: NO"
+ },
+ {
+  "id": "P-06c",
+  "vuln": "VULN-06",
+  "titulo": "Enumeración de usuarios en el login",
+  "seguro": false,
+  "evidencia": "Respuesta con correo inexistente : 'Error: Correo electrónico no existe'\nRespuesta con clave incorrecta  : 'Error: Contraseña incorrecta'\n-> DIFERENTES: permite enumerar usuarios"
+ },
+ {
+  "id": "P-06d",
+  "vuln": "VULN-06",
+  "titulo": "Cierre de sesión elimina la cookie",
+  "seguro": false,
+  "evidencia": "GET /scripts/cerrar_sesion.php -> HTTP 302; el servidor ordena borrar la cookie en el navegador: NO\nSet-Cookie: (ninguna)"
+ },
+ {
+  "id": "R-01",
+  "vuln": "REGRESIÓN",
+  "titulo": "Inicio de sesión legítimo",
+  "seguro": true,
+  "evidencia": "Login legítimo (admin de prueba) -> 'success'"
+ },
+ {
+  "id": "R-02",
+  "vuln": "REGRESIÓN",
+  "titulo": "Calendario para usuario autenticado",
+  "seguro": true,
+  "evidencia": "Usuario autenticado abre calendario -> HTTP 200; GET load_events.php?mes=10 -> HTTP 200; evento de prueba visible: SI"
+ },
+ {
+  "id": "R-03",
+  "vuln": "REGRESIÓN",
+  "titulo": "Administrador gestiona usuarios",
+  "seguro": true,
+  "evidencia": "Administrador abre lista de usuarios -> HTTP 200"
+ },
+ {
+  "id": "R-04",
+  "vuln": "REGRESIÓN",
+  "titulo": "Registro público de usuario (bcrypt)",
+  "seguro": true,
+  "evidencia": "Registro público -> HTTP 302; usuario creado con bcrypt: SI"
+ },
+ {
+  "id": "R-05",
+  "vuln": "REGRESIÓN",
+  "titulo": "Página de inicio pública",
+  "seguro": true,
+  "evidencia": "Página de inicio pública -> HTTP 200"
+ }
+]

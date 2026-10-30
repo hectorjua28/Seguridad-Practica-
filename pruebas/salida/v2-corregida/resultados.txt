@@ -1,0 +1,117 @@
+AUDITORÍA TotoNinin · versión probada: v2-corregida · servidor php -S 127.0.0.1:8082 · BD de prueba SQLite (datos ficticios)
+====================================================================================================
+[P-01a] VULN-01 · Inyección SQL en scripts/login.php (bypass de autenticación)
+    POST /scripts/login.php  email="x' OR '1'='1"  pass="x' OR '1'='1"
+    -> HTTP 401  Location: -  Set-Cookie: no
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-01b] VULN-01 · Inyección SQL UNION en load_events.php (exfiltración de hashes)
+    Usuario NO admin autenticado. GET /scripts/load_events.php?mes=0 UNION SELECT ... FROM users --
+    -> HTTP 200; hashes de contraseña exfiltrados en la respuesta: 0 (valores ocultos)
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-02a] VULN-02 · Listado de usuarios accesible sin sesión
+    Visitante SIN sesión: GET /scripts/lista_usuarios.php
+    -> HTTP 302; correos de usuarios visibles en la respuesta: 0
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-02b] VULN-02 · Eliminación de usuarios sin sesión
+    Visitante SIN sesión: POST /scripts/eliminar_usuario.php?id=3
+    -> HTTP 302; usuario id=3 sigue existiendo en BD: SI
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-02c] VULN-02 · Cambio de contraseña ajena sin sesión (toma de cuenta)
+    Visitante SIN sesión cambia la clave de id=2 y luego inicia sesión con la clave del atacante
+    -> login con clave del atacante: 'Error: Credenciales incorrectas'  (toma de cuenta bloqueada)
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-02d] VULN-02 · Usuario sin rol admin accede a gestión de usuarios
+    Usuario autenticado SIN rol admin: GET /scripts/lista_usuarios.php
+    -> HTTP 403
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-03a] VULN-03 · Algoritmo de hash de contraseñas en alta de usuario
+    Alta de usuario vía scripts/registro_usuario.php; formato del hash en BD: bcrypt ($2y$)
+    md5 coincide con diccionario/rainbow trivial: NO
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-03b] VULN-03 · Migración de hashes MD5 heredados a bcrypt
+    Cuenta heredada con hash MD5: login -> 'success'
+    formato del hash tras el login: bcrypt (migrado)
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-04a] VULN-04 · Subida de webshell .php y ejecución remota
+    Subida de shell.php (<?php echo 'RCE_'.(6*7); ?>) -> HTTP 400
+    GET /fotos/shell.php -> HTTP 404; respuesta: '<!doctype html><html><head><ti'  (código ejecutado en servidor: NO)
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-04b] VULN-04 · Subida .php con Content-Type falsificado
+    shell2.php con Content-Type falsificado image/jpeg -> HTTP 400
+    GET /fotos/shell2.php -> HTTP 404; ejecutado: NO
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-04c] VULN-04 · Imagen políglota (GIF+PHP) con doble extensión
+    GIF con código PHP embebido (nombre cliente poliglota.php.gif) -> HTTP 200
+    Guardado como nombre aleatorio '********....gif' (extensión derivada del MIME); Content-Type servido: image/gif
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-04d] VULN-04 · Regresión: subida legítima de imagen PNG
+    Subida legítima de PNG -> HTTP 200; mensaje de éxito presente: SI  (prueba de regresión funcional)
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-05a] VULN-05 · Credenciales de BD (root sin clave) embebidas en el código
+    Búsqueda de credenciales 'root' con clave vacía embebidas en código PHP
+    -> archivos afectados: 0
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-05b] VULN-05 · Errores detallados mostrados al usuario (display_errors)
+    Búsqueda de ini_set('display_errors',1) y echo de excepciones al usuario
+    -> archivos con display_errors activado: 0 []
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-05c] VULN-05 · Secretos excluidos del control de versiones
+    .gitignore protege includes/config.local.php (secretos fuera del repositorio): SI
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-06a] VULN-06 · Atributos HttpOnly/SameSite de la cookie de sesión
+    Set-Cookie al iniciar sesión: PHPSESSID=****; path=/; HttpOnly; SameSite=Lax
+    HttpOnly: SI   SameSite: SI
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-06b] VULN-06 · Fijación de sesión (session fixation)
+    Fijación de sesión: la víctima inicia sesión con un ID impuesto por el atacante; el atacante reutiliza ese ID
+    GET /paginas/calendario.php (cookie del atacante) -> HTTP 302; accede a contenido autenticado: NO
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-06c] VULN-06 · Enumeración de usuarios en el login
+    Respuesta con correo inexistente : 'Error: Credenciales incorrectas'
+    Respuesta con clave incorrecta  : 'Error: Credenciales incorrectas'
+    -> idénticas (sin enumeración)
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[P-06d] VULN-06 · Cierre de sesión elimina la cookie
+    GET /scripts/cerrar_sesion.php -> HTTP 302; el servidor ordena borrar la cookie en el navegador: SI
+    Set-Cookie: PHPSESSID=****; expires=Thu, 01 Jan 1970 00:00:01 GMT; Max-Age=0; path=/; HttpOnly; SameSite=Lax
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[R-01] REGRESIÓN · Inicio de sesión legítimo
+    Login legítimo (admin de prueba) -> 'admin'
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[R-02] REGRESIÓN · Calendario para usuario autenticado
+    Usuario autenticado abre calendario -> HTTP 200; GET load_events.php?mes=10 -> HTTP 200; evento de prueba visible: SI
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[R-03] REGRESIÓN · Administrador gestiona usuarios
+    Administrador abre lista de usuarios -> HTTP 200
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[R-04] REGRESIÓN · Registro público de usuario (bcrypt)
+    Registro público -> HTTP 302; usuario creado con bcrypt: SI
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+[R-05] REGRESIÓN · Página de inicio pública
+    Página de inicio pública -> HTTP 200
+    RESULTADO: SEGURO / CUMPLE
+----------------------------------------------------------------------------------------------------
+Resumen v2-corregida: 24/24 casos seguros/cumplen · 0 vulnerables

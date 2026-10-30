@@ -1,0 +1,121 @@
+:root {
+    --verde: #9ff411;
+    --verdelima: #56f532;
+    --Blanco: #fff;
+    --Rojo: #f50801;
+    --Naranja: #f5581a;
+    --Morado: #ed14f5;
+    --rosa: #f5149f;
+    --titulos: 'Arima Madurai', cursive;
+    --Parrafos: 'Mulish', sans-serif;
+}
+
+.contenedor {
+    max-width: 120rem;
+    margin: 0 auto;
+    width: 95%;
+}
+
+.contenedor-navegacion {
+    background-color: var(--Morado);
+    position: relative;
+    z-index: 5;
+    height: 84.3px;
+}
+
+.contenido-navegacion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo h2, .navegacion a {
+    color: var(--Blanco);
+}
+
+.logo h2 {
+    font-size: 3rem;
+}
+
+.navegacion a {
+    text-decoration: none;
+    font-size: 2.2rem;
+    padding: 1rem;
+    padding-left: 4rem;
+    display: block;
+    transition: color .3s ease-in-out;
+    text-align: center;
+}
+
+@media (min-width: 786px) {
+    .navegacion a {
+        text-align: left;
+    }
+}
+
+.navegacion a:nth-child(even):hover {
+    color: var(--verde);
+}
+
+.navegacion a:nth-child(odd):hover {
+    color: var(--verde);
+}
+
+.navegacion a:first-of-type {
+    margin-top: 5rem;
+}
+
+.navegacion {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: 100vh;
+    width: 40rem;
+    padding: 3rem 4rem;
+    background-color: var(--Morado);
+    animation: desplazamiento .5s ease-in-out;
+}
+
+.hamburguesa:hover {
+    cursor: pointer;
+}
+
+.hamburguesa span {
+    background-color: var(--Blanco);
+    display: block;
+    width: 5rem;
+    height: .5rem;
+    margin-bottom: .5rem;
+}
+
+.ocultar {
+    display: none;
+}
+
+.btn-cerrar {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--Blanco);
+    position: absolute;
+    top: 0;
+    right: 50px;
+    user-select: none;
+}
+
+.hamburguesa {
+    display: inline-block;
+    cursor: pointer;
+}
+
+.hamburguesa span {
+    background-color: var(--Blanco);
+    display: block;
+    width: 5rem;
+    height: .5rem;
+    margin-bottom: .5rem;
+}
+
+.hamburguesa:hover {
+    cursor: pointer;
+}
