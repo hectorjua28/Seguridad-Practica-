@@ -1,0 +1,6 @@
+# Artefactos de las pruebas automatizadas (reproducibles con pruebas/run_tests.py)
+pruebas/salida/*/test.sqlite
+pruebas/salida/*/server.log
+pruebas/salida/*/php_error.log
+*.pyc
+__pycache__/
