@@ -462,7 +462,7 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then(buf => {
-  const out = path.join(__dirname, 'Auditoria_MASVS_TotoNinin.docx');
+  const out = path.join(__dirname, 'contenido_base.docx');
   fs.writeFileSync(out, buf);
   console.log('Escrito:', out);
 });
