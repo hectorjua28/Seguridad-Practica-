@@ -186,17 +186,29 @@ const CHECKLIST = [
 // ------------------------------------------------------------------
 const sections = [];
 
-// ---- Portada ----
+// ---- Portada (formato institucional) ----
+function portadaLabel(text) {
+  return new Paragraph({ spacing: { before: 500, after: 40 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text, bold: true, size: 22 })] });
+}
+function portadaValor(text) {
+  return new Paragraph({ spacing: { before: 0, after: 0 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text, bold: true, size: 22 })] });
+}
 sections.push(
-  new Paragraph({ spacing: { before: 600, after: 0 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'UNIVERSIDAD TECNOLÓGICA DE GUTIÉRREZ ZAMORA', bold: true, size: 24, color: COLOR.gris })] }),
-  new Paragraph({ spacing: { before: 100, after: 600 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Desarrollo Móvil Integral', size: 22, color: COLOR.gris })] }),
-  new Paragraph({ spacing: { before: 1200, after: 200 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'UNIDAD II — SEGURIDAD MASVS', bold: true, size: 32, color: COLOR.ribbon })] }),
-  new Paragraph({ spacing: { before: 0, after: 1200 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Auditoría básica de seguridad con OWASP MASVS / MASTG\naplicación propia: TotoNinin', size: 26 })] }),
-  new Paragraph({ spacing: { before: 1600, after: 80 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Referencia técnica: OWASP MASVS v2.x · OWASP MASTG (versión vigente a la fecha de la prueba)', italics: true, size: 20 }) ] }),
-  new Paragraph({ spacing: { before: 800, after: 40 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Correo del alumno: albertohector91@gmail.com', size: 20 })] }),
-  new Paragraph({ spacing: { before: 0, after: 40 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Nombre del alumno: _______________________________', size: 20 })] }),
-  new Paragraph({ spacing: { before: 0, after: 40 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Grupo / matrícula: ______________________________', size: 20 })] }),
-  new Paragraph({ spacing: { before: 0, after: 40 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'Fecha del reporte: 29 de octubre de 2026', size: 20 })] }),
+  new Paragraph({ spacing: { before: 400, after: 500 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'UNIVERSIDAD TECNOLÓGICA DE GUTIÉRREZ ZAMORA', bold: true, size: 26 })] }),
+  portadaLabel('PROGRAMA EDUCATIVO:'),
+  portadaValor('Ingeniería en Desarrollo y Gestión de Software'),
+  portadaLabel('NOMBRE DE LA MATERIA:'),
+  portadaValor('Desarrollo Móvil Integral'),
+  portadaLabel('NOMBRE DE LA TAREA:'),
+  portadaValor('Unidad II — Seguridad MASVS'),
+  portadaValor('Auditoría básica de seguridad con OWASP MASVS / MASTG'),
+  portadaValor('(aplicación propia: TotoNinin)'),
+  portadaLabel('ELABORADO POR:'),
+  portadaValor('Héctor Zahid Juárez Simbrón'),
+  portadaLabel('DOCENTE:'),
+  portadaValor('Lothar Yamir Hernández Gaona'),
+  new Paragraph({ spacing: { before: 500, after: 40 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: '1010 - “AEI”', bold: true, size: 22 })] }),
+  new Paragraph({ spacing: { before: 0, after: 40 }, alignment: AlignmentType.CENTER, children: [new TextRun({ text: 'SEPTIEMBRE – DICIEMBRE 2026', bold: true, size: 22 })] }),
   new Paragraph({ children: [new PageBreak()] }),
 );
 
