@@ -95,90 +95,64 @@ function evidencePair(tituloAntes, antesImg, tituloDespues, despuesImg) {
 // ------------------------------------------------------------------
 const HALLAZGOS = [
   {
-    id: 'VULN-01', titulo: 'Inyección SQL (bypass de autenticación y exfiltración vía UNION)',
-    grupo: 'MASVS-CODE (primario) · MASVS-AUTH (secundario)',
-    ubicacion: 'scripts/login.php (consulta de login); scripts/load_events.php, scripts/obtener_eventos.php (parámetro "mes"); scripts/lista_usuarios.php, lista_eventos.php, lista_categoria.php (parámetro "pagina"); scripts/registro_usuario.php, editar_usuario.php, registro_categoria.php, editar_categoria.php (correo/descripción)',
-    reproduccion: [
-      'Enviar POST a scripts/login.php con email = pass = x\' OR \'1\'=\'1',
-      'El servidor concatena el valor directamente en el SQL y la condición siempre es verdadera: se inicia sesión sin conocer ninguna credencial.',
-      'Autenticado como un usuario cualquiera, enviar GET a scripts/load_events.php?mes=0 UNION SELECT ID_us,Name_us,password_us,... FROM users -- para leer los hashes de contraseña de todos los usuarios a través de una vista pensada solo para listar eventos del mes.',
-    ],
+    id: 'VULN-01', titulo: 'Inyección SQL',
+    grupo: 'MASVS-CODE (principal) · MASVS-AUTH (secundario)',
+    ubicacion: 'scripts/login.php (consulta del login); scripts/load_events.php y scripts/obtener_eventos.php (parámetro "mes"); scripts/lista_usuarios.php, lista_eventos.php y lista_categoria.php (parámetro "pagina"); scripts/registro_usuario.php, editar_usuario.php, registro_categoria.php y editar_categoria.php (correo y descripción)',
+    repro: 'Para comprobarlo mandé un POST a scripts/login.php con x\' OR \'1\'=\'1 tanto en el correo como en la contraseña. El código pega lo que escribe el usuario directo dentro de la consulta SQL, así que la condición siempre sale verdadera y la app me dejó entrar sin conocer ninguna contraseña. Ya dentro con cualquier usuario, abrí scripts/load_events.php?mes=0 UNION SELECT ID_us,Name_us,password_us,... FROM users -- y esa página, que solo debería listar los eventos del mes, me mostró los hashes de contraseña de todos los usuarios.',
     evidenciaId: 'P-01a / P-01b', probabilidad: 3, impacto: 3, riesgo: 'Crítico',
-    correccion: 'Se sustituyeron todas las consultas que concatenaban entrada del usuario por sentencias preparadas (mysqli prepare/bind_param) y se forzó el tipo numérico (int) en parámetros como "mes", "pagina" e "id" antes de usarlos en SQL. El login quedó centralizado en includes/auth.php::authenticate().',
+    correccion: 'Para corregirlo cambié todas las consultas que armaban el SQL con lo que escribe el usuario por consultas preparadas (prepare y bind_param de mysqli). Además, los valores que deben ser números, como mes, pagina e id, ahora se convierten a entero antes de usarlos. El login quedó en una sola función, authenticate(), dentro de includes/auth.php.',
   },
   {
-    id: 'VULN-02', titulo: 'Control de acceso roto en funciones administrativas',
-    grupo: 'MASVS-AUTH (primario) · MASVS-PLATFORM (secundario)',
+    id: 'VULN-02', titulo: 'Control de acceso roto en las funciones de administrador',
+    grupo: 'MASVS-AUTH (principal) · MASVS-PLATFORM (secundario)',
     ubicacion: 'scripts/lista_usuarios.php, eliminar_usuario.php, editar_usuario.php, registro_usuario.php, lista_categoria.php, eliminar_categoria.php, registro_categoria.php, editar_categoria.php, lista_eventos.php, eliminar_confirmar_evento.php, registro_evento.php, editar_evento.php, paginas/admin.php',
-    reproduccion: [
-      'Sin iniciar sesión, solicitar GET scripts/lista_usuarios.php: la lista completa de usuarios (nombre y correo) se muestra igualmente.',
-      'Sin iniciar sesión, enviar POST a scripts/eliminar_usuario.php?id=3: el usuario se elimina de la base de datos sin pedir ninguna credencial.',
-      'Sin iniciar sesión, enviar POST a scripts/editar_usuario.php?id=2 con una contraseña nueva: la contraseña de ese usuario queda sobrescrita (toma de cuenta) y el atacante puede iniciar sesión con la clave que impuso.',
-      'Con sesión de un usuario normal (no administrador), acceder a scripts/lista_usuarios.php: el panel administrativo se muestra igual porque ningún script valida el rol.',
-    ],
+    repro: 'Sin iniciar sesión pedí scripts/lista_usuarios.php y me mostró la lista completa de usuarios con nombre y correo. Con un POST a scripts/eliminar_usuario.php?id=3, también sin sesión, el usuario se borró de la base de datos. Con otro POST a scripts/editar_usuario.php?id=2 le cambié la contraseña a otro usuario y después pude entrar a su cuenta con la clave que puse yo. Por último, entré con un usuario normal (no administrador) y el panel de administración se abrió igual, porque ningún script revisa el rol.',
     evidenciaId: 'P-02a / P-02b / P-02c / P-02d', probabilidad: 3, impacto: 3, riesgo: 'Crítico',
-    correccion: 'Se creó includes/auth.php con require_login() y require_admin(); los 14 scripts administrativos ahora exigen sesión y rol de administrador (es_admin, calculado en el servidor a partir de ADMIN_EMAIL) antes de ejecutar cualquier lectura o escritura.',
+    correccion: 'Creé includes/auth.php con las funciones require_login() y require_admin(). Los 14 scripts de administración ahora piden sesión iniciada y rol de administrador antes de leer o escribir cualquier dato. El rol (es_admin) se calcula en el servidor a partir de ADMIN_EMAIL.',
   },
   {
-    id: 'VULN-03', titulo: 'Hash de contraseñas débil (MD5 sin sal)',
-    grupo: 'MASVS-CRYPTO (primario) · MASVS-STORAGE (secundario)',
-    ubicacion: 'scripts/registro.php, scripts/registro_usuario.php (alta de usuarios vía panel admin)',
-    reproduccion: [
-      'Registrar un usuario desde scripts/registro_usuario.php y consultar la columna password_us en la base de datos.',
-      'El valor es un hash MD5 de 32 caracteres hexadecimales, sin sal: reversible en segundos con un diccionario o una tabla arcoíris si la base de datos llegara a filtrarse.',
-      'Nota: el formulario público de registro (paginas/registro.php) sí usaba password_hash()/bcrypt desde el original; el problema estaba acotado al alta hecha por el administrador y a la clase legada Registro.',
-    ],
+    id: 'VULN-03', titulo: 'Contraseñas guardadas con MD5',
+    grupo: 'MASVS-CRYPTO (principal) · MASVS-STORAGE (secundario)',
+    ubicacion: 'scripts/registro.php y scripts/registro_usuario.php (alta de usuarios desde el panel de administración)',
+    repro: 'Registré un usuario desde scripts/registro_usuario.php y revisé la columna password_us en la base de datos. El valor era un hash MD5 de 32 caracteres hexadecimales y sin sal, que se puede descifrar en segundos con un diccionario si la base de datos llegara a filtrarse. El formulario público de registro (paginas/registro.php) ya usaba password_hash() con bcrypt desde el original, así que el problema estaba solo en el alta que hace el administrador y en la clase Registro, que quedó de una versión anterior.',
     evidenciaId: 'P-03a / P-03b', probabilidad: 2, impacto: 2, riesgo: 'Medio',
-    correccion: 'Se reemplazó md5() por password_hash($clave, PASSWORD_DEFAULT) (bcrypt) en todos los puntos de alta/edición. Se añadió además una migración transparente: si una cuenta antigua todavía tiene un hash MD5, el primer login correcto lo valida una vez y lo reemplaza por bcrypt automáticamente.',
+    correccion: 'Cambié md5() por password_hash($clave, PASSWORD_DEFAULT), que usa bcrypt, en todos los lugares donde se crea o se edita una contraseña. También agregué una migración: si una cuenta vieja todavía tiene hash MD5, en su primer login correcto se valida una vez y se guarda de nuevo con bcrypt.',
   },
   {
-    id: 'VULN-04', titulo: 'Subida de archivos sin validar (ejecución remota de código)',
-    grupo: 'MASVS-CODE (primario) · MASVS-PLATFORM (secundario)',
-    ubicacion: 'scripts/registro_evento.php, scripts/editar_evento.php (campo "foto")',
-    reproduccion: [
-      'Con una cuenta normal (registro público, sin privilegios de administrador), crear un evento adjuntando un archivo "shell.php" cuyo contenido es <?php echo \'RCE_\'.(6*7); ?>.',
-      'La aplicación solo valida $foto[\'error\'] y mueve el archivo a fotos/ conservando el nombre y la extensión que envía el navegador, sin comprobar el tipo de contenido real.',
-      'Visitar directamente fotos/shell.php: el servidor interpreta el archivo como PHP y ejecuta el código (salida "RCE_42"), lo que equivale a ejecución remota de código con los permisos del servidor web.',
-    ],
+    id: 'VULN-04', titulo: 'Subida de archivos sin validar (ejecución de código en el servidor)',
+    grupo: 'MASVS-CODE (principal) · MASVS-PLATFORM (secundario)',
+    ubicacion: 'scripts/registro_evento.php y scripts/editar_evento.php (campo "foto")',
+    repro: 'Con una cuenta normal, creada desde el registro público, creé un evento y en la foto subí un archivo shell.php que contiene <?php echo \'RCE_\'.(6*7); ?>. La aplicación solo revisa $foto[\'error\'] y mueve el archivo a la carpeta fotos/ con el mismo nombre y extensión que manda el navegador, sin comprobar qué contiene en realidad. Al abrir fotos/shell.php directamente, el servidor lo ejecutó como PHP y respondió RCE_42, o sea que cualquiera podría correr código en el servidor con los permisos del servidor web.',
     evidenciaId: 'P-04a / P-04b / P-04c', probabilidad: 3, impacto: 3, riesgo: 'Crítico',
-    correccion: 'Se añadió includes/upload.php::guardar_foto_evento(): valida que el archivo provenga de una subida real (is_uploaded_file), limita el tamaño, verifica el tipo MIME real con fileinfo (no el que declara el navegador) contra una lista blanca de imágenes, confirma con getimagesize() que el contenido es una imagen válida, y lo guarda con un nombre aleatorio y una extensión derivada del MIME (nunca la del cliente). Se agregó además fotos/.htaccess que desactiva la ejecución de PHP en esa carpeta como defensa en profundidad.',
+    correccion: 'Agregué includes/upload.php con la función guardar_foto_evento(). Revisa que el archivo venga de una subida real (is_uploaded_file), limita el tamaño, comprueba el tipo real con fileinfo en lugar del que dice el navegador y lo compara con una lista de imágenes permitidas. Después confirma con getimagesize() que de verdad sea una imagen y la guarda con un nombre aleatorio y la extensión que corresponde a su tipo, nunca la que mandó el cliente. Como protección extra puse un fotos/.htaccess que apaga la ejecución de PHP en esa carpeta.',
   },
   {
-    id: 'VULN-05', titulo: 'Credenciales y secretos embebidos en el código fuente',
-    grupo: 'MASVS-STORAGE (primario) · MASVS-CODE (secundario)',
+    id: 'VULN-05', titulo: 'Credenciales escritas dentro del código',
+    grupo: 'MASVS-STORAGE (principal) · MASVS-CODE (secundario)',
     ubicacion: 'scripts/conexion.php, bd_php/conexion.php, scripts/login.php, scripts/add_comment.php, scripts/evento_detalle.php, scripts/registro_evento.php, scripts/editar_evento.php, paginas/login.php, paginas/registro.php, index.php, scripts/load_events.php, scripts/obtener_eventos.php, scripts/eventos.php, scripts/registro.php, bd_php/usuarioBD.php',
-    reproduccion: [
-      'Buscar en el código fuente la cadena new mysqli("localhost","root","",...): aparece repetida en 14 archivos, con el usuario root y la contraseña vacía escritos de forma literal.',
-      'bd_php/usuarioBD.php tenía además error_reporting(E_ALL) + ini_set("display_errors",1) y mostraba el mensaje de excepción de MySQL directamente al usuario (die("Error de conexión: " . $e->getMessage())), lo que expone detalles internos (rutas, nombres de tabla, versión de MySQL) a cualquier visitante.',
-      'El proyecto no incluía archivo .gitignore, por lo que un futuro archivo de configuración con credenciales reales se habría subido al repositorio sin control.',
-    ],
+    repro: 'Busqué en el código la cadena new mysqli("localhost","root","",...) y aparece repetida en 14 archivos, con el usuario root y la contraseña vacía escritos directo. Además bd_php/usuarioBD.php tenía error_reporting(E_ALL) e ini_set("display_errors",1), y mostraba el mensaje de error de MySQL al usuario con die("Error de conexión: " . $e->getMessage()), lo que deja ver rutas, nombres de tablas y la versión de MySQL a cualquiera que visite la página. El proyecto tampoco tenía archivo .gitignore, así que si algún día se creaba un archivo de configuración con credenciales reales, se habría subido al repositorio sin ningún control.',
     evidenciaId: 'P-05a / P-05b / P-05c', probabilidad: 2, impacto: 2, riesgo: 'Medio',
-    correccion: 'Se centralizó la conexión en includes/db.php + includes/config.php, que leen host/usuario/clave/BD desde variables de entorno o desde includes/config.local.php (archivo que no se sube al repositorio). Los errores de conexión y de consulta ahora se registran con error_log() y al usuario solo se le muestra un mensaje genérico. Se agregó .gitignore excluyendo config.local.php, *.env y los registros temporales de prueba.',
+    correccion: 'Dejé la conexión en includes/db.php e includes/config.php, que leen el host, el usuario, la clave y la base de datos de variables de entorno o del archivo includes/config.local.php, que no se sube al repositorio. Los errores de conexión y de consulta ahora se guardan con error_log() y al usuario solo le sale un mensaje general. También agregué un .gitignore que excluye config.local.php, los archivos *.env y los registros temporales de las pruebas.',
   },
   {
-    id: 'VULN-06', titulo: 'Gestión insegura de sesión (cookie sin protecciones, fijación de sesión, enumeración de usuarios y cierre de sesión incompleto)',
-    grupo: 'MASVS-AUTH (primario)',
+    id: 'VULN-06', titulo: 'Manejo inseguro de la sesión',
+    grupo: 'MASVS-AUTH (principal)',
     ubicacion: 'scripts/login.php, paginas/login.php, scripts/cerrar_sesion.php, includes/header.php, includes/nav.php',
-    reproduccion: [
-      'Al iniciar sesión, la cabecera Set-Cookie del PHPSESSID no incluye HttpOnly ni SameSite, y el identificador de sesión es el mismo que tenía el visitante antes de autenticarse (no se llama a session_regenerate_id()), lo que permite fijación de sesión: un atacante que induce a la víctima a usar un ID de sesión conocido (por ejemplo vía enlace) puede reutilizar ese mismo ID después de que la víctima inicie sesión.',
-      'El login devuelve mensajes distintos para "correo no existe" y "contraseña incorrecta", lo que permite enumerar qué correos están registrados probando uno por uno.',
-      'scripts/cerrar_sesion.php llama a session_destroy() pero nunca borra la cookie del navegador (no hay setcookie(...,-1)), por lo que el ID de sesión sigue viajando en cada petición aunque ya no tenga datos asociados.',
-      'El rol de administrador se decide comparando el correo contra un valor fijo dentro de includes/nav.php, repetido en cada archivo en vez de calcularse una sola vez en el servidor al autenticar.',
-    ],
+    repro: 'Al iniciar sesión, la cabecera Set-Cookie del PHPSESSID no trae HttpOnly ni SameSite, y el identificador de sesión es el mismo que tenía el visitante antes de entrar porque no se llama a session_regenerate_id(). Eso permite que un atacante le dé a la víctima un identificador que él ya conoce, por ejemplo con un enlace, y lo siga usando cuando la víctima inicie sesión (fijación de sesión). Otro problema es que el login responde distinto cuando el correo no existe y cuando la contraseña es incorrecta, así que se pueden ir probando correos para saber cuáles están registrados. Además, scripts/cerrar_sesion.php llama a session_destroy() pero nunca borra la cookie del navegador, por lo que el identificador sigue viajando en cada petición. Por último, el rol de administrador se decide comparando el correo con un valor fijo dentro de includes/nav.php, repetido en varios archivos, en lugar de calcularlo una sola vez en el servidor al autenticar.',
     evidenciaId: 'P-06a / P-06b / P-06c / P-06d', probabilidad: 2, impacto: 2, riesgo: 'Medio',
-    correccion: 'Se creó includes/session.php: cookie de sesión con HttpOnly, SameSite=Lax y Secure quién corresponda según HTTPS; expiración por inactividad (30 min); session_regenerate_id(true) en cada login (evita fijación); logout_user() que vacía $_SESSION, destruye la sesión en el servidor y expira la cookie en el navegador. El login ahora responde siempre "Credenciales incorrectas" sin distinguir el motivo, y el rol es_admin se calcula una única vez en el servidor al autenticar.',
+    correccion: 'Creé includes/session.php. La cookie de sesión ahora lleva HttpOnly y SameSite=Lax, y Secure cuando se usa HTTPS; la sesión expira a los 30 minutos sin actividad; se llama a session_regenerate_id(true) en cada login; y logout_user() vacía $_SESSION, destruye la sesión en el servidor y expira la cookie en el navegador. El login ahora siempre responde "Credenciales incorrectas" sin decir cuál fue el motivo, y el rol es_admin se calcula una sola vez en el servidor al autenticar.',
   },
 ];
 
 const CHECKLIST = [
-  ['STORAGE', 'Credenciales embebidas, gestión de secretos, errores detallados expuestos, exclusión de secretos de Git.', 'NC', 'VULN-05 (P-05a/b/c) — corregido, ver reprueba 24/24.'],
-  ['CRYPTO', 'Algoritmo de hash para contraseñas, generación de nombres de archivo/identificadores.', 'NC', 'VULN-03 (P-03a/b) — MD5→bcrypt, corregido.'],
-  ['AUTH', 'Inyección SQL en login, control de acceso a funciones administrativas, cookie de sesión, fijación de sesión, enumeración de usuarios, cierre de sesión.', 'NC', 'VULN-01, VULN-02, VULN-06 — corregidos; ver fichas y reprueba.'],
-  ['NETWORK', 'Transporte cliente-servidor (HTTP/TLS).', 'N/A', 'El proyecto entregado no incluye configuración de servidor web (vhost de Apache/Nginx) ni certificado para un despliegue de producción; no se encontraron endpoints propios codificados con http:// (solo recursos externos de terceros como fuentes e íconos). Queda fuera del alcance del código fuente evaluado; se recomienda forzar HTTPS y la cabecera Strict-Transport-Security en el servidor de producción.'],
-  ['PLATFORM', 'Validación de archivos subidos al servidor (equivalente web a permisos/IPC); control de acceso a componentes administrativos.', 'NC', 'VULN-04 (subida de archivos) y VULN-02 (acceso a paneles) — corregidos. No aplican WebViews, enlaces profundos ni permisos del sistema operativo porque la aplicación entregada es una aplicación web PHP renderizada en servidor, sin empaquetado móvil (APK/IPA) en el proyecto evaluado.'],
-  ['CODE', 'Validación de entradas, manejo de errores, modo de depuración.', 'NC', 'VULN-01 (inyección SQL) y VULN-05 (display_errors) — corregidos.'],
-  ['RESILIENCE', 'Manipulación, ingeniería inversa, controles de entorno de ejecución.', 'N/A', 'No aplica: la aplicación no se distribuye como binario compilado (APK/IPA) sino como código PHP interpretado en el servidor; no existe un artefacto cliente que un atacante pueda descompilar o manipular localmente. El código fuente del servidor nunca llega al dispositivo del usuario, que es la premisa de los controles de resistencia de MASVS.'],
-  ['PRIVACY', 'Minimización de datos, consentimiento, rastreadores, retención.', 'C', 'Los datos solicitados (nombre, correo, contraseña, comentarios) son los mínimos necesarios para la función de la app. No se detectaron scripts de rastreo/analítica de terceros en el código. Observación menor (no bloqueante): no existe un aviso de privacidad ni opción de eliminar la cuenta propia; se deja como recomendación para una iteración futura, fuera de las 6 correcciones de esta auditoría.'],
+  ['STORAGE', 'Credenciales escritas en el código, manejo de secretos, errores con demasiado detalle y secretos en Git.', 'NC', 'VULN-05 (P-05a/b/c). Corregido y comprobado en la reprueba.'],
+  ['CRYPTO', 'Algoritmo de hash de las contraseñas y nombres de archivo o identificadores.', 'NC', 'VULN-03 (P-03a/b): de MD5 a bcrypt. Corregido.'],
+  ['AUTH', 'Inyección SQL en el login, acceso a las funciones de administrador, cookie de sesión, fijación de sesión, saber qué correos existen y cierre de sesión.', 'NC', 'VULN-01, VULN-02 y VULN-06. Corregidos; ver sus fichas y la reprueba.'],
+  ['NETWORK', 'Transporte entre cliente y servidor (HTTP/TLS).', 'N/A', 'El proyecto no incluye la configuración del servidor web (vhost de Apache o Nginx) ni un certificado de producción. Tampoco encontré en el código endpoints propios con http://, solo recursos externos como fuentes e íconos. Por eso queda fuera de lo que se puede evaluar con el código; en producción habría que forzar HTTPS y usar la cabecera Strict-Transport-Security.'],
+  ['PLATFORM', 'Validación de archivos subidos (lo más parecido en web a permisos e IPC) y control de acceso a las partes de administración.', 'NC', 'VULN-04 (subida de archivos) y VULN-02 (acceso a los paneles). Corregidos. No aplican WebViews, enlaces profundos ni permisos del sistema operativo porque la app es web, se renderiza en el servidor y no tiene APK/IPA.'],
+  ['CODE', 'Validación de entradas, manejo de errores y modo de depuración.', 'NC', 'VULN-01 (inyección SQL) y VULN-05 (display_errors). Corregidos.'],
+  ['RESILIENCE', 'Manipulación, ingeniería inversa y controles del entorno de ejecución.', 'N/A', 'No aplica. La app no se distribuye como binario (APK/IPA) sino como código PHP que se interpreta en el servidor, así que no hay un archivo en el celular que alguien pueda descompilar o modificar. El código del servidor nunca llega al dispositivo del usuario, y esa es la idea de fondo de los controles de resistencia de MASVS.'],
+  ['PRIVACY', 'Datos mínimos, consentimiento, rastreadores y retención.', 'C', 'Los datos que pide la app (nombre, correo, contraseña y comentarios) son los necesarios para funcionar y no encontré scripts de rastreo o analítica de terceros. Una observación menor que no bloquea: no hay aviso de privacidad ni opción para eliminar la cuenta propia; lo dejo como recomendación para después, fuera de las 6 correcciones de esta auditoría.'],
 ];
 
 // ------------------------------------------------------------------
@@ -225,121 +199,93 @@ const INDICE = [
 ];
 INDICE.forEach(t => sections.push(new Paragraph({ spacing: { after: 160 }, children: [new TextRun({ text: t, size: 22 })] })));
 sections.push(new Paragraph({ children: [new PageBreak()] }));
-
 // ---- 1. Alcance y controles seleccionados ----
 sections.push(h1('1. Alcance y controles seleccionados'));
 
-sections.push(h2('1.1 Objeto de la auditoría'));
-sections.push(p('Aplicación auditada: TotoNinin — sistema de gestión de eventos (registro de usuarios, calendario/categorías de eventos, comentarios y panel administrativo).'));
-sections.push(table([
-  headerRow(['Dato', 'Valor'], [2200, 7150]),
-  new TableRow({ children: [txtCell('Tecnología', 2200, { bold: true }), txtCell('PHP 8 + MySQL/MariaDB, renderizado del lado del servidor (sin framework; mysqli procedural y orientado a objetos mezclados)', 7150)] }),
-  new TableRow({ children: [txtCell('Plataforma', 2200, { bold: true }), txtCell('Aplicación web. No se incluyó en el ZIP entregado ningún empaquetado móvil nativo (APK/IPA) ni proyecto híbrido (Ionic/Cordova/Capacitor) para TotoNinin — ver aclaración de alcance en 1.3.', 7150)] }),
-  new TableRow({ children: [txtCell('Versión / snapshot auditado', 2200, { bold: true }), txtCell('v1-original: snapshot del archivo .zip entregado el 29/10/2026 (sin historial de Git previo). v2-corregida: mismo código con las 6 correcciones de esta auditoría aplicadas. Ambas versiones se incluyen íntegras en el repositorio entregado (ver sección 7).', 7150)] }),
-  new TableRow({ children: [txtCell('Entorno de prueba', 2200, { bold: true }), txtCell('Contenedor Linux aislado, PHP 8.3.6 (servidor embebido php -S). No fue posible instalar MariaDB/MySQL en el entorno de auditoría (sin acceso al repositorio de paquetes del sistema operativo), por lo que se usó una base de datos de prueba equivalente en SQLite con una capa de compatibilidad que traduce las mismas llamadas mysqli que usa la aplicación (pruebas/mysqli_shim.php), sin añadir ni quitar ninguna lógica de seguridad. Cada hallazgo se verificó además por revisión estática directa del código fuente PHP real.', 7150)] }),
-  new TableRow({ children: [txtCell('Cuentas y datos de prueba', 2200, { bold: true }), txtCell('Usuarios ficticios con correos @totoninin.test y claves marcadas "Test/Prueba" (p. ej. admin@totoninin.test, user@totoninin.test). Ningún dato personal real se usó en ninguna prueba.', 7150)] }),
-], [2200, 7150]));
+sections.push(h2('1.1 Qué se auditó'));
+sections.push(p('La aplicación que audité es TotoNinin, un sistema para gestionar eventos donde los usuarios se registran, ven un calendario con categorías de eventos y dejan comentarios, y un administrador maneja todo desde un panel. Está hecha en PHP 8 con MySQL/MariaDB y se renderiza del lado del servidor, sin framework, y mezcla mysqli procedural con mysqli orientado a objetos. Es una aplicación web: el ZIP del proyecto no trae ningún APK/IPA ni proyecto híbrido (Ionic, Cordova o Capacitor), por eso más abajo explico cómo apliqué MASVS en este caso.'));
+sections.push(p('Trabajé con dos versiones. v1-original es el contenido del ZIP tal como lo recibí el 29/10/2026, sin historial de Git previo, y v2-corregida es el mismo código con las 6 correcciones de esta auditoría. Las dos están completas en el repositorio (ver «Entrega y repositorio»). Como referencia usé la versión 2 de OWASP MASVS, con sus grupos STORAGE, CRYPTO, AUTH, NETWORK, PLATFORM, CODE, RESILIENCE y PRIVACY, y la guía MASTG de apoyo para las pruebas.'));
+sections.push(p('Las pruebas las hice en un contenedor Linux aislado con PHP 8.3.6 y el servidor integrado (php -S). No pude instalar MariaDB/MySQL porque el entorno no tenía acceso a los paquetes del sistema, así que usé una base de datos de prueba en SQLite con una capa que traduce las mismas llamadas mysqli que usa la app (pruebas/mysqli_shim.php). Esa capa no agrega ni quita ninguna lógica de seguridad, y además revisé cada hallazgo leyendo directamente el código PHP real.'));
 
-sections.push(h2('1.2 Reglas de trabajo seguidas'));
-[
-  'Se auditó únicamente la aplicación propia del alumno (TotoNinin); no se atacó ningún servicio externo.',
-  'Se usaron exclusivamente cuentas y datos de prueba, nunca información real.',
-  'Las claves, hashes y cookies de sesión se ocultan en todas las capturas de evidencia de este reporte (se muestra su formato, no su valor).',
-  'Cada cambio quedó registrado como commit independiente en el repositorio Git entregado (sección 7).',
-  'Se conservó una copia íntegra de la versión original (v1-original) como respaldo antes de corregir, tal como exige la metodología.',
-].forEach(t => sections.push(bullet(t)));
+sections.push(h2('1.2 Reglas de trabajo'));
+sections.push(p('Solo audité mi propia aplicación y no ataqué ningún servicio externo. Todos los datos son de prueba: usuarios ficticios con correos @totoninin.test y claves marcadas como Test/Prueba (por ejemplo admin@totoninin.test y user@totoninin.test), sin ningún dato personal real. Las claves, los hashes y las cookies de sesión aparecen ocultos en todas las capturas y solo se deja su formato. Antes de corregir guardé una copia completa de la versión original (v1-original) como respaldo, y los cambios quedaron registrados en el historial de Git del repositorio.'));
 
 sections.push(h2('1.3 Aclaración de alcance: MASVS aplicado a una aplicación web'));
-sections.push(p('OWASP MASVS fue diseñado para aplicaciones móviles nativas o híbridas distribuidas como binario (APK/IPA). La aplicación entregada para esta práctica, TotoNinin, es una aplicación web clásica renderizada en servidor (PHP/MySQL) y no incluye ningún artefacto móvil compilado. Siguiendo el propio material de la unidad — cuya plantilla de verificación (diapositivas 50 y 51) ya incorpora criterios agnósticos de plataforma como "HTTP o TLS mal validado" y "Secretos incluidos en Git" — se aplicaron los grupos de MASVS cuyo equivalente tiene sentido en una arquitectura cliente-servidor web: STORAGE, CRYPTO, AUTH, NETWORK, CODE y PLATFORM (en su parte de control de acceso a componentes administrativos y validación de archivos). Los controles intrínsecamente ligados a un binario móvil compilado y distribuido en el dispositivo del usuario — RESILIENCE (anti-tampering, ingeniería inversa de un ejecutable local) y la parte de PLATFORM referida a permisos del sistema operativo, WebViews y enlaces profundos — se marcaron No aplica, justificado en el checklist de la sección 6.4, porque el código fuente de TotoNinin nunca se ejecuta en el dispositivo del atacante: se ejecuta en el servidor.'));
+sections.push(p('MASVS está pensado para aplicaciones móviles, nativas o híbridas, que se distribuyen como binario (APK/IPA). TotoNinin es una aplicación web en PHP que se ejecuta en el servidor y no trae ningún archivo móvil compilado. Aun así, las diapositivas 50 y 51 de la unidad incluyen criterios que no dependen de la plataforma, como "HTTP o TLS mal validado" y "Secretos incluidos en Git", así que apliqué los grupos de MASVS que tienen un equivalente en una aplicación cliente-servidor: STORAGE, CRYPTO, AUTH, NETWORK, CODE y PLATFORM (esta última solo en el control de acceso a las partes de administración y en la validación de archivos).'));
+sections.push(p('Los controles que dependen de un binario instalado en el celular los marqué como No aplica. Son RESILIENCE (evitar que modifiquen o descompilen la app) y la parte de PLATFORM sobre permisos del sistema, WebViews y enlaces profundos. La razón es que el código de TotoNinin nunca llega al dispositivo del atacante porque corre en el servidor. La justificación completa está en el «Checklist MASVS».'));
 
 sections.push(h2('1.4 Controles seleccionados'));
+sections.push(p('Esta tabla muestra qué pasó con cada grupo de MASVS:'));
 sections.push(table([
   headerRow(['Grupo MASVS', 'Resultado del alcance'], [2200, 7150]),
   ...[
     ['MASVS-STORAGE', 'Evaluado'], ['MASVS-CRYPTO', 'Evaluado'], ['MASVS-AUTH', 'Evaluado'],
-    ['MASVS-NETWORK', 'No aplica (justificado) — ver checklist 6.4'],
-    ['MASVS-PLATFORM', 'Evaluado parcialmente (control de acceso y validación de archivos); resto no aplica — ver checklist 6.4'],
+    ['MASVS-NETWORK', 'No aplica (justificado), ver «Checklist MASVS»'],
+    ['MASVS-PLATFORM', 'Evaluado en parte (control de acceso y validación de archivos); el resto no aplica, ver «Checklist MASVS»'],
     ['MASVS-CODE', 'Evaluado'],
-    ['MASVS-RESILIENCE', 'No aplica (justificado) — ver checklist 6.4'],
-    ['MASVS-PRIVACY', 'Evaluado (cumple, con una observación menor no bloqueante)'],
-  ].map(([a, b]) => new TableRow({ children: [txtCell(a, 2200, { bold: true }), txtCell(b, 7150)] })),
+    ['MASVS-RESILIENCE', 'No aplica (justificado), ver «Checklist MASVS»'],
+    ['MASVS-PRIVACY', 'Evaluado (cumple, con una observación menor que no bloquea)'],
+  ].map(([a, b]) => new TableRow({ children: [txtCell(a, 2200), txtCell(b, 7150)] })),
 ], [2200, 7150]));
-
-sections.push(new Paragraph({ children: [new PageBreak()] }));
 
 // ---- 2. Procedimiento de prueba ----
 sections.push(h1('2. Procedimiento de prueba'));
-sections.push(p('Se siguieron las ocho fases de la metodología de la unidad: inventariar, inspección estática, prueba dinámica, registrar, priorizar, corregir, reprobar y entregar.'));
+sections.push(p('Seguí las ocho fases de la metodología de la unidad: inventariar, inspección estática, prueba dinámica, registrar, priorizar, corregir, reprobar y entregar.'));
 
 sections.push(h2('2.1 Inventario'));
-[
-  'Datos almacenados: tabla users (nombre, correo, hash de contraseña), events (título, descripción, fecha, foto, tipo), comments (texto libre asociado a un evento), event_type (catálogo de categorías).',
-  'Funciones sensibles: inicio de sesión, registro público de usuarios, alta/edición/eliminación de usuarios desde el panel admin, alta/edición/eliminación de eventos y categorías, subida de fotografías de evento, publicación de comentarios, cierre de sesión.',
-  'Permisos/roles: dos niveles implícitos en el código original — "usuario autenticado" y "administrador" (decidido comparando el correo contra un valor fijo), sin tabla de roles.',
-  'Superficie expuesta sin autenticación: index.php, paginas/registro.php, paginas/login.php, paginas/informacion.php, paginas/preguntas.php.',
-].forEach(t => sections.push(bullet(t)));
+sections.push(p('Primero anoté qué maneja la app. En la base de datos hay cuatro tablas: users (nombre, correo y hash de contraseña), events (título, descripción, fecha, foto y tipo), comments (texto libre ligado a un evento) y event_type (catálogo de categorías). Las funciones delicadas son iniciar sesión, el registro público, el alta, edición y eliminación de usuarios, eventos y categorías desde el panel de administración, la subida de fotos, los comentarios y cerrar sesión.'));
+sections.push(p('En el código original hay dos niveles de permisos que no están escritos en ningún lado: usuario autenticado y administrador, y este último se decide comparando el correo con un valor fijo, sin tabla de roles. Sin iniciar sesión se puede entrar a index.php, paginas/registro.php, paginas/login.php, paginas/informacion.php y paginas/preguntas.php.'));
 
 sections.push(h2('2.2 Inspección estática'));
-sections.push(p('Revisión manual del código PHP completo (2,673 líneas en 37 archivos) buscando: concatenación de entrada de usuario en SQL, credenciales embebidas, algoritmo de hash de contraseñas, validación de archivos subidos, configuración de cookies de sesión, manejo de errores y presencia de .gitignore. Se usó comparación línea a línea (diff) entre v1-original y v2-corregida para verificar que cada corrección es mínima y no modifica comportamiento no relacionado con el hallazgo.'));
+sections.push(p('Revisé a mano todo el código PHP (2,673 líneas en 37 archivos) buscando entradas del usuario pegadas dentro de consultas SQL, credenciales escritas en el código, el algoritmo de hash de las contraseñas, la validación de los archivos subidos, la configuración de las cookies de sesión, el manejo de errores y si existía un .gitignore. Después comparé línea por línea (diff) v1-original contra v2-corregida para confirmar que cada corrección es pequeña y no cambia nada que no tenga que ver con el hallazgo.'));
 
 sections.push(h2('2.3 Prueba dinámica'));
-sections.push(p('Se levantó la aplicación con el servidor embebido de PHP (php -S) contra la base de datos de prueba y se ejecutó un conjunto de pruebas HTTP automatizado y reproducible (pruebas/run_tests.py, incluido en el repositorio entregado), que para cada versión del código:'));
-[
-  'Reinicia la base de datos de prueba a un estado conocido antes de cada caso (aislamiento entre pruebas).',
-  'Envía peticiones HTTP reales (con y sin sesión, con payloads maliciosos y con datos legítimos) usando un cliente propio con manejo de cookies.',
-  'Registra la evidencia (código de estado, cabeceras relevantes, fragmentos de respuesta) enmascarando automáticamente cookies de sesión y hashes antes de guardarlos.',
-  'Compara el resultado contra el criterio de corrección de cada hallazgo y lo marca SEGURO/CUMPLE o VULNERABLE/NO CUMPLE.',
-].forEach(t => sections.push(bullet(t)));
-sections.push(p('En total se ejecutaron 24 casos de prueba: 19 casos de seguridad (distribuidos en los 6 hallazgos) y 5 casos de regresión funcional (login legítimo, calendario, panel de administración, registro público y página de inicio), para verificar que las correcciones no rompieron ninguna función existente.'));
+sections.push(p('Levanté la aplicación con el servidor integrado de PHP (php -S) sobre la base de datos de prueba y ejecuté un script de pruebas HTTP automático que se puede repetir (pruebas/run_tests.py, también en el repositorio). Para cada versión del código, el script deja la base de datos en un estado conocido antes de cada caso para que las pruebas no se afecten entre sí y manda peticiones HTTP reales, con y sin sesión, con datos maliciosos y con datos normales. Guarda lo que pasó (código de estado, cabeceras importantes y partes de la respuesta) ocultando automáticamente las cookies de sesión y los hashes. Al final compara el resultado con el criterio de cada hallazgo y marca el caso como SEGURO/CUMPLE o VULNERABLE/NO CUMPLE.'));
+sections.push(p('En total fueron 24 casos: 19 de seguridad, repartidos en los 6 hallazgos, y 5 de regresión (login normal, calendario, panel de administración, registro público y página de inicio) para comprobar que las correcciones no rompieran nada que ya funcionaba.'));
 
 sections.push(h2('2.4 Registrar y priorizar'));
-sections.push(p('Cada hallazgo se documentó con una ficha (ID, grupo MASVS, ubicación, pasos de reproducción, evidencia, probabilidad, impacto y nivel de riesgo), siguiendo la escala didáctica Riesgo = Impacto × Probabilidad (1–3 cada uno) de la unidad: 1–3 Bajo, 4–6 Medio, 7–8 Alto, 9 Crítico.'));
-
-sections.push(new Paragraph({ children: [new PageBreak()] }));
+sections.push(p('Cada hallazgo tiene su ficha con ID, grupo MASVS, ubicación, forma de reproducirlo, evidencia, probabilidad, impacto y nivel de riesgo. Para el nivel usé la escala de la unidad: riesgo = impacto × probabilidad, con valores del 1 al 3 en cada uno, donde 1–3 es Bajo, 4–6 Medio, 7–8 Alto y 9 Crítico.'));
 
 // ---- 3. Resultados y evidencias ----
 sections.push(h1('3. Resultados y evidencias'));
-sections.push(p('Resumen comparativo de los 24 casos de prueba ejecutados contra ambas versiones del código:'));
+sections.push(p('Esta tabla compara los 24 casos de prueba ejecutados en las dos versiones del código:'));
 sections.push(table([
   headerRow(['Versión', 'Casos seguros / cumplen', 'Casos vulnerables', 'Regresión funcional'], [2600, 2600, 2300, 1850]),
-  new TableRow({ children: [txtCell('v1-original', 2600, { bold: true }), cell([new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${RES_V1.filter(r=>r.seguro).length} / ${RES_V1.length}`, color: COLOR.rojo, bold: true })] })], { width: 2600 }), txtCell(`${RES_V1.filter(r=>!r.seguro && !r.id.startsWith('R-')).length} de 19 casos de seguridad`, 2300), txtCell('5 / 5 (ya funcionaba)', 1850)] }),
-  new TableRow({ children: [txtCell('v2-corregida', 2600, { bold: true }), cell([new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${RES_V2.filter(r=>r.seguro).length} / ${RES_V2.length}`, color: COLOR.verde, bold: true })] })], { width: 2600 }), txtCell('0 de 19 casos de seguridad', 2300), txtCell('5 / 5 (sin regresiones)', 1850)] }),
+  new TableRow({ children: [txtCell('v1-original', 2600), cell([new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${RES_V1.filter(r=>r.seguro).length} / ${RES_V1.length}`, color: COLOR.rojo, bold: true })] })], { width: 2600 }), txtCell(`${RES_V1.filter(r=>!r.seguro && !r.id.startsWith('R-')).length} de 19 casos de seguridad`, 2300), txtCell('5 / 5 (ya funcionaba)', 1850)] }),
+  new TableRow({ children: [txtCell('v2-corregida', 2600), cell([new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `${RES_V2.filter(r=>r.seguro).length} / ${RES_V2.length}`, color: COLOR.verde, bold: true })] })], { width: 2600 }), txtCell('0 de 19 casos de seguridad', 2300), txtCell('5 / 5 (sin regresiones)', 1850)] }),
 ], [2600, 2600, 2300, 1850]));
 
-sections.push(h2('3.1 Evidencia por hallazgo (código y comportamiento, antes/después)'));
-sections.push(p('Las claves, hashes y cookies de sesión se muestran enmascarados (****) en toda la evidencia; solo se conserva su formato para poder verificar el control.', { italics: true, size: 18 }));
+sections.push(h2('3.1 Evidencia por hallazgo (código y comportamiento, antes y después)'));
+sections.push(p('Las claves, los hashes y las cookies de sesión están ocultos con **** en todas las capturas; solo se deja su formato para poder comprobar el control.', { italics: true, size: 18 }));
 
 const EVID = [
   ['VULN-01 · Inyección SQL', 'v01_antes.png', 'v01_despues.png', 'v01_antes_terminal.png', 'v01_despues_terminal.png'],
   ['VULN-02 · Control de acceso roto', 'v02_antes.png', 'v02_despues.png', 'v02_antes_terminal.png', 'v02_despues_terminal.png'],
-  ['VULN-03 · Hash de contraseñas débil', 'v03_antes.png', 'v03_despues.png', 'v03_antes_terminal.png', 'v03_despues_terminal.png'],
+  ['VULN-03 · Contraseñas guardadas con MD5', 'v03_antes.png', 'v03_despues.png', 'v03_antes_terminal.png', 'v03_despues_terminal.png'],
   ['VULN-04 · Subida de archivos sin validar', 'v04_antes.png', 'v04_despues.png', 'v04_antes_terminal.png', 'v04_despues_terminal.png'],
-  ['VULN-05 · Secretos embebidos en el código', 'v05_antes.png', 'v05_despues.png', 'v05_antes_terminal.png', 'v05_despues_terminal.png'],
-  ['VULN-06 · Gestión insegura de sesión', 'v06_antes.png', 'v06_despues.png', 'v06_antes_terminal.png', 'v06_despues_terminal.png'],
+  ['VULN-05 · Credenciales escritas en el código', 'v05_antes.png', 'v05_despues.png', 'v05_antes_terminal.png', 'v05_despues_terminal.png'],
+  ['VULN-06 · Manejo inseguro de la sesión', 'v06_antes.png', 'v06_despues.png', 'v06_antes_terminal.png', 'v06_despues_terminal.png'],
 ];
 for (const [titulo, codA, codD, termA, termD] of EVID) {
   sections.push(h3(titulo));
-  sections.push(p('Código — antes (izquierda) y después (derecha):', { bold: true, size: 20 }));
+  sections.push(p('Código antes (izquierda) y después (derecha):'));
   sections.push(evidencePair('antes', codA, 'después', codD));
-  sections.push(p('Comportamiento observado — antes (izquierda) y después (derecha):', { bold: true, size: 20, spacingBefore: 160 }));
+  sections.push(p('Lo que pasó en las pruebas antes (izquierda) y después (derecha):', { spacingBefore: 160 }));
   sections.push(evidencePair('antes', termA, 'después', termD));
 }
 
-sections.push(new Paragraph({ children: [new PageBreak()] }));
-
 // ---- 4. Hallazgos y nivel de riesgo ----
 sections.push(h1('4. Hallazgos y nivel de riesgo'));
-sections.push(p('Ficha obligatoria por hallazgo. Riesgo = Impacto × Probabilidad (escala 1–3 cada uno; 1–3 Bajo, 4–6 Medio, 7–8 Alto, 9 Crítico — escala didáctica de la unidad, no una escala oficial de OWASP MASVS).'));
+sections.push(p('Cada hallazgo tiene su ficha. El riesgo es impacto × probabilidad (de 1 a 3 cada uno; 1–3 Bajo, 4–6 Medio, 7–8 Alto, 9 Crítico). Es la escala de la unidad, no una escala oficial de OWASP MASVS.'));
 
 for (const f of HALLAZGOS) {
   sections.push(h2(`${f.id} — ${f.titulo}`));
   sections.push(table([
-    new TableRow({ children: [txtCell('Grupo MASVS', 2200, { bold: true, shade: COLOR.grisClaro }), txtCell(f.grupo, 7150)] }),
-    new TableRow({ children: [txtCell('Ubicación', 2200, { bold: true, shade: COLOR.grisClaro }), txtCell(f.ubicacion, 7150)] }),
-    new TableRow({ children: [txtCell('Evidencia', 2200, { bold: true, shade: COLOR.grisClaro }), txtCell(`Casos ${f.evidenciaId} — ver sección 3.1 y anexo de resultados`, 7150)] }),
+    new TableRow({ children: [txtCell('Grupo MASVS', 2200, { shade: COLOR.grisClaro }), txtCell(f.grupo, 7150)] }),
+    new TableRow({ children: [txtCell('Ubicación', 2200, { shade: COLOR.grisClaro }), txtCell(f.ubicacion, 7150)] }),
+    new TableRow({ children: [txtCell('Evidencia', 2200, { shade: COLOR.grisClaro }), txtCell(`Casos ${f.evidenciaId}; ver «Evidencia por hallazgo» y la carpeta pruebas/ del repositorio`, 7150)] }),
   ], [2200, 7150]));
-  sections.push(p('Reproducción:', { bold: true, spacingBefore: 120 }));
-  f.reproduccion.forEach((t, i) => sections.push(new Paragraph({ numbering: { reference: 'repro-numbering', level: 0 }, spacing: { after: 80 }, children: [new TextRun({ text: t })] })));
+  sections.push(p(f.repro, { spacingBefore: 160 }));
   sections.push(table([
     headerRow(['Probabilidad', 'Impacto', 'Riesgo'], [3117, 3116, 3117]),
     new TableRow({ children: [
@@ -348,88 +294,70 @@ for (const f of HALLAZGOS) {
       riskBadge(f.riesgo),
     ] }),
   ], [3117, 3116, 3117]));
-  sections.push(p('Corrección aplicada:', { bold: true, spacingBefore: 120 }));
-  sections.push(p(f.correccion, { spacingAfter: 300 }));
+  sections.push(p(f.correccion, { spacingBefore: 160, spacingAfter: 300 }));
 }
-
-sections.push(new Paragraph({ children: [new PageBreak()] }));
 
 // ---- 5. Correcciones implementadas ----
 sections.push(h1('5. Correcciones implementadas'));
-sections.push(p('Resumen de los archivos nuevos y modificados entre v1-original y v2-corregida. El detalle línea por línea de cada cambio está disponible como diff en el repositorio entregado (carpeta del commit "Correcciones VULN-01..06").'));
+sections.push(p('Aquí está lo que cambió entre v1-original y v2-corregida. El detalle línea por línea está como diff en el repositorio, en el commit "Correcciones VULN-01..06 (OWASP MASVS) + evidencias + reporte técnico".'));
 
-sections.push(h2('5.1 Archivos nuevos (infraestructura de seguridad reutilizable)'));
+sections.push(h2('5.1 Archivos nuevos'));
 sections.push(table([
-  headerRow(['Archivo', 'Propósito'], [3300, 6050]),
+  headerRow(['Archivo', 'Para qué sirve'], [3300, 6050]),
   ...[
-    ['includes/config.php', 'Lee configuración (host/usuario/clave de BD, correo de administrador) desde variables de entorno o desde includes/config.local.php, nunca desde literales en el código.'],
-    ['includes/config.local.example.php', 'Plantilla de ejemplo para que cada entorno (desarrollo/producción) cree su propio includes/config.local.php, excluido de Git.'],
-    ['includes/db.php', 'Función db(): entrega una conexión mysqli ya configurada; ante un fallo registra el detalle en el log del servidor y muestra un mensaje genérico al usuario (VULN-05).'],
-    ['includes/session.php', 'secure_session_start() (cookie con HttpOnly/SameSite, expiración por inactividad), login_user() (regenera el ID de sesión) y logout_user() (destruye la sesión y expira la cookie) — VULN-06.'],
-    ['includes/auth.php', 'require_login(), require_admin() (VULN-02) y authenticate() con consulta preparada, password_verify() y migración automática de hashes MD5 heredados a bcrypt (VULN-01 / VULN-03).'],
-    ['includes/upload.php', 'guardar_foto_evento(): valida tipo MIME real, tamaño y estructura de imagen, y genera un nombre de archivo aleatorio (VULN-04).'],
-    ['fotos/.htaccess', 'Desactiva la ejecución de PHP dentro de la carpeta de imágenes subidas por usuarios, como defensa en profundidad adicional a VULN-04.'],
-    ['.gitignore', 'Excluye includes/config.local.php, *.env y archivos temporales de prueba del control de versiones (VULN-05).'],
+    ['includes/config.php', 'Lee la configuración (host, usuario y clave de la base de datos, correo del administrador) de variables de entorno o de includes/config.local.php, en lugar de tenerla escrita en el código.'],
+    ['includes/config.local.example.php', 'Ejemplo para que cada entorno (desarrollo o producción) cree su propio includes/config.local.php, que no se sube a Git.'],
+    ['includes/db.php', 'Función db(), que entrega la conexión mysqli ya configurada. Si falla, guarda el detalle en el log del servidor y al usuario le muestra un mensaje general (VULN-05).'],
+    ['includes/session.php', 'secure_session_start() (cookie con HttpOnly y SameSite, expiración por inactividad), login_user() (cambia el ID de sesión) y logout_user() (destruye la sesión y expira la cookie). Corrige VULN-06.'],
+    ['includes/auth.php', 'require_login() y require_admin() (VULN-02) y authenticate(), con consulta preparada, password_verify() y migración de hashes MD5 viejos a bcrypt (VULN-01 y VULN-03).'],
+    ['includes/upload.php', 'guardar_foto_evento(): revisa el tipo real, el tamaño y que sea una imagen válida, y genera un nombre de archivo aleatorio (VULN-04).'],
+    ['fotos/.htaccess', 'Apaga la ejecución de PHP dentro de la carpeta de fotos subidas, como protección extra para VULN-04.'],
+    ['.gitignore', 'Evita subir a Git includes/config.local.php, los archivos *.env y los archivos temporales de prueba (VULN-05).'],
   ].map(([a, b]) => new TableRow({ children: [txtCell(a, 3300), txtCell(b, 6050)] })),
 ], [3300, 6050]));
 
 sections.push(h2('5.2 Archivos modificados'));
 sections.push(table([
-  headerRow(['Archivo', 'Corrección aplicada'], [3300, 6050]),
+  headerRow(['Archivo', 'Qué se corrigió'], [3300, 6050]),
   ...[
-    ['scripts/login.php, paginas/login.php, paginas/login.js', 'VULN-01 (consulta preparada), VULN-06 (sesión segura, mensaje genérico, textContent en vez de innerHTML)'],
-    ['scripts/conexion.php, bd_php/conexion.php, index.php, scripts/{load_events,obtener_eventos,evento_detalle,add_comment,eventos,registro}.php, paginas/registro.php, bd_php/usuarioBD.php', 'VULN-05 (credenciales fuera del código, errores sin detalle al usuario)'],
-    ['scripts/{registro_usuario,editar_usuario,registro_categoria,editar_categoria,eliminar_usuario,eliminar_categoria,eliminar_confirmar_evento,lista_usuarios,lista_categoria,lista_eventos,buscar_usuario}.php, paginas/admin.php', 'VULN-02 (require_admin), VULN-01 (consultas preparadas, parámetros numéricos forzados a int)'],
-    ['scripts/registro_evento.php, scripts/editar_evento.php', 'VULN-04 (validación real del archivo subido vía includes/upload.php)'],
-    ['scripts/cerrar_sesion.php, includes/header.php, includes/nav.php', 'VULN-06 (logout_user(), rol es_admin calculado en el servidor)'],
+    ['scripts/login.php, paginas/login.php, paginas/login.js', 'VULN-01 (consulta preparada) y VULN-06 (sesión segura, mensaje general y textContent en lugar de innerHTML)'],
+    ['scripts/conexion.php, bd_php/conexion.php, index.php, scripts/{load_events,obtener_eventos,evento_detalle,add_comment,eventos,registro}.php, paginas/registro.php, bd_php/usuarioBD.php', 'VULN-05 (credenciales fuera del código, errores sin detalle para el usuario)'],
+    ['scripts/{registro_usuario,editar_usuario,registro_categoria,editar_categoria,eliminar_usuario,eliminar_categoria,eliminar_confirmar_evento,lista_usuarios,lista_categoria,lista_eventos,buscar_usuario}.php, paginas/admin.php', 'VULN-02 (require_admin) y VULN-01 (consultas preparadas y parámetros numéricos convertidos a int)'],
+    ['scripts/registro_evento.php, scripts/editar_evento.php', 'VULN-04 (validación real del archivo con includes/upload.php)'],
+    ['scripts/cerrar_sesion.php, includes/header.php, includes/nav.php', 'VULN-06 (logout_user() y rol es_admin calculado en el servidor)'],
   ].map(([a, b]) => new TableRow({ children: [txtCell(a, 3300), txtCell(b, 6050)] })),
 ], [3300, 6050]));
-
-sections.push(new Paragraph({ children: [new PageBreak()] }));
 
 // ---- 6. Repetición de pruebas y conclusiones ----
 sections.push(h1('6. Repetición de pruebas y conclusiones'));
 
 sections.push(h2('6.1 Reprueba'));
-sections.push(p(`Se ejecutó el mismo conjunto de 24 pruebas automatizadas contra v2-corregida: ${RES_V2.filter(r=>r.seguro).length}/${RES_V2.length} casos resultaron SEGURO/CUMPLE, incluyendo los 5 casos de regresión funcional (login legítimo, calendario de eventos, panel de administración, registro público y página de inicio), lo que confirma que las correcciones eliminan los 6 hallazgos sin romper ninguna función existente de la aplicación.`));
+sections.push(p(`Corrí otra vez las mismas 24 pruebas automáticas contra v2-corregida y ${RES_V2.filter(r=>r.seguro).length} de ${RES_V2.length} casos salieron SEGURO/CUMPLE, incluidos los 5 de regresión (login normal, calendario de eventos, panel de administración, registro público y página de inicio). Con esto se ve que las correcciones quitan los 6 hallazgos sin romper ninguna función de la aplicación.`));
 
-sections.push(h2('6.2 Riesgos pendientes y recomendaciones adicionales'));
-[
-  'MASVS-NETWORK quedó fuera del alcance evaluable porque el proyecto no incluye la configuración del servidor web de producción; se recomienda forzar HTTPS y agregar la cabecera Strict-Transport-Security en ese servidor.',
-  'No se implementó límite de intentos de inicio de sesión (rate limiting); se recomienda agregarlo para mitigar fuerza bruta residual, incluso con contraseñas ya en bcrypt.',
-  'No se agregaron cabeceras de seguridad adicionales como Content-Security-Policy; se dejaron únicamente X-Content-Type-Options, X-Frame-Options y Referrer-Policy por ser cambios mínimos y no romper recursos externos ya usados por la app (fuentes e íconos de terceros).',
-  'La observación menor de MASVS-PRIVACY (falta de aviso de privacidad y opción de autoeliminación de cuenta) se deja como mejora futura, fuera de las 6 correcciones obligatorias de esta auditoría.',
-  'En un despliegue real, la base de datos debe usar un usuario de MySQL con privilegios mínimos y contraseña fuerte (nunca root sin clave); includes/config.local.example.php documenta ese cambio.',
-].forEach(t => sections.push(bullet(t)));
+sections.push(h2('6.2 Pendientes y recomendaciones'));
+sections.push(p('Quedaron cosas que no corregí. NETWORK no se pudo evaluar porque el proyecto no trae la configuración del servidor de producción; ahí habría que forzar HTTPS y agregar la cabecera Strict-Transport-Security. Tampoco puse un límite de intentos de login (rate limiting), que ayudaría contra la fuerza bruta aunque las contraseñas ya estén en bcrypt.'));
+sections.push(p('De las cabeceras de seguridad solo agregué X-Content-Type-Options, X-Frame-Options y Referrer-Policy, y no puse Content-Security-Policy para no romper las fuentes e íconos externos que usa la app. La observación de PRIVACY (falta un aviso de privacidad y una opción para que el usuario borre su cuenta) la dejé como mejora futura. Por último, en un servidor real la base de datos debe usar un usuario de MySQL con permisos mínimos y una contraseña fuerte, nunca root sin clave; includes/config.local.example.php ya muestra ese cambio.'));
 
 sections.push(h2('6.3 Conclusiones'));
-sections.push(p('La revisión identificó 6 fallas verificables (uno más del mínimo de 5 solicitado), repartidas en 3 de riesgo Crítico (inyección SQL, control de acceso roto y subida de archivos sin validar) y 3 de riesgo Medio (hash débil de contraseñas, secretos embebidos en el código y gestión insegura de sesión). Las 6 se corrigieron y se verificaron con pruebas dinámicas reproducibles antes y después del cambio, además de 5 pruebas de regresión que confirman que la funcionalidad original de la aplicación (inicio de sesión, calendario, panel de administración, registro público) se conserva intacta. Los controles MASVS-RESILIENCE y la parte de MASVS-PLATFORM ligada a permisos de sistema operativo se marcaron No aplica porque TotoNinin es una aplicación web sin empaquetado móvil compilado, justificación que se documenta en el checklist siguiente.'));
+sections.push(p('Encontré 6 fallas, una más que el mínimo de 5 que pedía la tarea: 3 de riesgo Crítico (inyección SQL, control de acceso roto y subida de archivos sin validar) y 3 de riesgo Medio (MD5 en las contraseñas, credenciales escritas en el código y manejo inseguro de la sesión). Las seis quedaron corregidas y las comprobé con pruebas que se pueden repetir, antes y después del cambio. Las 5 pruebas de regresión confirman que el inicio de sesión, el calendario, el panel de administración y el registro público siguen funcionando igual que antes.'));
+sections.push(p('RESILIENCE y la parte de PLATFORM que depende de permisos del sistema los dejé como No aplica porque TotoNinin es una aplicación web sin empaquetado móvil. La justificación está en el checklist de abajo.'));
 
 sections.push(h2('6.4 Checklist MASVS'));
 sections.push(table([
-  headerRow(['Área', 'Qué se revisó', 'Estado', 'Evidencia / justificación'], [1300, 2800, 950, 4300]),
+  headerRow(['Área', 'Qué se revisó', 'Estado', 'Evidencia o justificación'], [1300, 2800, 950, 4300]),
   ...CHECKLIST.map(([area, que, estado, ev]) => new TableRow({ children: [
-    txtCell(area, 1300, { bold: true }), txtCell(que, 2800),
+    txtCell(area, 1300), txtCell(que, 2800),
     cell([new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: estado, bold: true, color: estado === 'C' ? COLOR.verde : estado === 'N/A' ? COLOR.gris : COLOR.rojo })] })], { width: 950 }),
     txtCell(ev, 4300),
   ] })),
 ], [1300, 2800, 950, 4300]));
-sections.push(p('C = cumple · NC = no cumplía (corregido, reprobado y hoy cumple) · N/A = no aplica (justificado arriba)', { italics: true, size: 18, spacingBefore: 120 }));
-
-sections.push(new Paragraph({ children: [new PageBreak()] }));
+sections.push(p('C = cumple · NC = no cumplía (se corrigió, se volvió a probar y ahora cumple) · N/A = no aplica (justificado en la tabla)', { italics: true, size: 18, spacingBefore: 120 }));
 
 // ---- 7. Entrega y repositorio ----
 sections.push(h1('7. Entrega y repositorio'));
-sections.push(p('El repositorio entregado contiene:'));
-[
-  'v1-original/ — copia íntegra de la aplicación tal como fue recibida (snapshot del ZIP), conservada como respaldo antes de corregir.',
-  'v2-corregida/ — la misma aplicación con las 6 correcciones aplicadas.',
-  'pruebas/ — script de pruebas automatizado (run_tests.py), capa de compatibilidad de base de datos para el entorno de auditoría (mysqli_shim.php) y los resultados crudos de cada ejecución (resultados.txt / resultados.json) para ambas versiones.',
-  'evidencias/ — las capturas de código y de comportamiento (antes/después) usadas en este reporte.',
-  'reporte/ — este documento.',
-].forEach(t => sections.push(bullet(t)));
-sections.push(p('Historial de Git: el repositorio se inicializó con un commit "v1-original: snapshot de la aplicación entregada" y un segundo commit "Correcciones VULN-01..06 (reprueba 24/24)" que introduce exclusivamente los cambios descritos en la sección 5, de modo que el historial permite comparar antes/después con git diff.'));
-sections.push(p('Pendiente de indicar por el alumno: URL del repositorio remoto (GitHub/GitLab) donde se debe subir — este documento y el código quedan listos para el push en cuanto se confirme el destino.', { italics: true }));
+sections.push(p('Subí todo al repositorio de GitHub https://github.com/hectorjua28/Seguridad-Practica-. Tiene la carpeta v1-original/ con la aplicación tal como la recibí, v2-corregida/ con las 6 correcciones, pruebas/ con run_tests.py, la capa de compatibilidad mysqli_shim.php y los resultados de cada ejecución (resultados.txt y resultados.json) de las dos versiones, evidencias/ con las capturas de este reporte y reporte/ con este documento.'));
+sections.push(p('El historial de Git empieza con un commit que guarda v1-original sin cambios y sigue con el commit de las correcciones VULN-01..06 y las evidencias, así que se puede comparar el antes y el después con git diff.'));
+
 
 // Numbering config for "Reproducción" steps
 const doc = new Document({
