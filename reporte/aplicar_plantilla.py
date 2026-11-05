@@ -161,10 +161,11 @@ def etiqueta(runs):
     set_ppr(p, '<w:keepNext/><w:spacing w:before="200" w:after="80" w:line="360" w:lineRule="auto"/><w:jc w:val="left"/>')
     add_runs(p, runs, force_bold=True)
 
-def parrafo(runs):
+def parrafo(runs, keep=False):
     p = doc.add_paragraph()
     nota = all(f['size'] and f['size'] < 20 for _, f in runs)
-    set_ppr(p, '<w:spacing w:before="0" w:after="160" w:line="360" w:lineRule="auto"/>' if not nota
+    izq = '<w:jc w:val="left"/>' if sum(t.count('.php') for t, _ in runs) > 3 else ''
+    set_ppr(p, ('<w:keepNext/>' if keep else '') + '<w:spacing w:before="0" w:after="160" w:line="360" w:lineRule="auto"/>' + izq if not nota
                else '<w:spacing w:before="60" w:after="160" w:line="276" w:lineRule="auto"/>')
     add_runs(p, runs)
 
@@ -186,6 +187,17 @@ def numerado(runs, num_id):
                '<w:spacing w:before="120" w:after="0" w:line="360" w:lineRule="auto"/>'
                '<w:ind w:left="720" w:hanging="360"/><w:jc w:val="left"/>')
     add_runs(p, runs)
+
+def imagen(p_src):
+    """Captura a todo el ancho útil, centrada (el pie de foto va antes y queda unido a ella)."""
+    d = next(p_src.iter(qn('w:drawing')))
+    rid = d.find('.//{http://schemas.openxmlformats.org/drawingml/2006/main}blip').get(qn('r:embed'))
+    ext = d.find('.//{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}extent')
+    cx, cy = int(ext.get('cx')), int(ext.get('cy'))
+    w = min(cx, TEXT_W * 635)
+    p = doc.add_paragraph()
+    set_ppr(p, '<w:keepLines/><w:spacing w:before="40" w:after="240" w:line="240" w:lineRule="auto"/><w:jc w:val="center"/>')
+    p.add_run().add_picture(BytesIO(src.part.related_parts[rid].blob), width=Emu(w), height=Emu(round(cy * w / cx)))
 
 def espacio():
     p = doc.add_paragraph()
@@ -299,8 +311,15 @@ inicio = next(i for i, e in enumerate(hijos_src)
 
 toc = []            # (texto, bookmark)
 num_actual = None
-for e in hijos_src[inicio:]:
+for idx in range(inicio, len(hijos_src)):
+    e = hijos_src[idx]
+    sig = hijos_src[idx + 1] if idx + 1 < len(hijos_src) else None
+    sig_img = sig is not None and sig.tag == qn('w:p') and sig.find('.//' + qn('w:drawing')) is not None
     if e.tag == qn('w:sectPr'):
+        continue
+    if e.tag == qn('w:p') and e.find('.//' + qn('w:drawing')) is not None:
+        num_actual = None
+        imagen(e)
         continue
     if e.tag == qn('w:tbl'):
         num_actual = None
@@ -328,7 +347,7 @@ for e in hijos_src[inicio:]:
     elif all(f['bold'] for _, f in runs):
         etiqueta(runs)
     else:
-        parrafo(runs)
+        parrafo(runs, keep=sig_img)
 
 # ------------------------------------------------------------------ índice (campo TOC de la plantilla)
 content = sdt.find(qn('w:sdtContent'))
